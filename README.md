@@ -11,3 +11,5 @@ and paste the downloaded folder or create a new folder there
 
 
 restart fl studio if necessary
+
+step 3: profit
