@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Caption="ZGameEditor application" ClearScreenMode="1" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+uTime+=delta;
+
+Bitmap b= Bitmap1;
+float TextureWidth = b.Width;
+float TextureHeight = b.Height;
+
+uTex = vector2(TextureWidth,TextureHeight);
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+uMouse=vector4(0.0,0.0,0.0,0.0);
+
+
+
+//app.CameraPosition.z= 4-Parameters[4]*3.5;
+//app.cameraPosition.x=(-0.5+Parameters[4])*-20;
+//app.cameraPosition.y=(-0.5+Parameters[5])*10;
+
+//rtg1.Scale.X=(1 + Parameters[7]*4) * r;
+//rtg1.Scale.Y=1 + Parameters[8]*4;]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader" UpdateVarsOnEachUse="255">
+      <VertexShaderSource>
+<![CDATA[
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+  gl_TexCoord[0] = gl_MultiTexCoord0;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+uniform vec2 iResolution, iViewport, iTex;
+uniform float iTime;
+uniform vec4 iMouse;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+#define iChannel0 tex1
+#define iChannel1 tex2
+uniform bool original_texture;
+uniform float cropY;
+uniform float cropX;
+
+uniform float offsetX;
+uniform float offsetY;
+
+uniform float PosX;
+uniform float PosY;
+
+uniform float scale;
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+{
+    if (original_texture == false)
+    {
+        vec2 Pos = vec2(PosX, PosY);
+        Pos = ((0.5 + Pos) * -3.0) + 0.5;
+        vec2 crop = vec2(cropX, cropY);
+        vec2 offset = vec2(offsetX, offsetY);
+        vec2 uv = fragCoord / iResolution.xy;
+        uv -= offset * -10.0;
+        uv *= scale;
+
+        vec2 cropMin = Pos - vec2(crop);
+        vec2 cropMax = Pos + vec2(crop);
+
+        if (uv.x >= cropMin.x && uv.x <= cropMax.x && uv.y >= cropMin.y && uv.y <= cropMax.y)
+        {
+
+
+
+            fragColor = texture2D(iChannel0, uv);
+        }
+    }
+    else
+    {
+        vec2 uv = fragCoord / iResolution.xy;
+        fragColor = texture2D(iChannel0, uv);
+    }
+}
+
+void main()
+{
+    mainImage(gl_FragColor, gl_FragCoord.xy - iViewport);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
+        <ShaderVariable VariableName="cropX" ValuePropRef="1.0-Parameters[0]"/>
+        <ShaderVariable VariableName="cropY" ValuePropRef="1.0-Parameters[1]"/>
+        <ShaderVariable VariableName="offsetX" ValuePropRef="0.0-Parameters[2]"/>
+        <ShaderVariable VariableName="offsetY" ValuePropRef="0.0-Parameters[3]"/>
+        <ShaderVariable VariableName="PosX" ValuePropRef="0.0-Parameters[4]"/>
+        <ShaderVariable VariableName="PosY" ValuePropRef="0.0-Parameters[5]"/>
+        <ShaderVariable VariableName="scale" ValuePropRef="1.0-Parameters[6]"/>
+        <ShaderVariable VariableName="original_texture" ValuePropRef="0.0-Parameters[7]"/>
+        <ShaderVariable VariableName="iTex" VariableRef="uTex"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uMouse" Type="8"/>
+        <Variable Name="uDate" Type="8"/>
+        <Variable Name="uTex" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="8" Persistent="255">
+          <Values>
+<![CDATA[789C6360C000F620ACCCA00CE60000077400C5]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2" IntValue="1">
+          <StringValue>
+<![CDATA[crop X
+crop Y
+offset X@separator
+offset Y
+Position X@separator
+Position Y
+scale
+original tex @checkbox@separator]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue="made by mae :p"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TextureWrapMode="1"/>
+            <MaterialTexture Name="Source1" Texture="Bitmap1" TextureWrapMode="1"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5" BorderPixels="0"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>

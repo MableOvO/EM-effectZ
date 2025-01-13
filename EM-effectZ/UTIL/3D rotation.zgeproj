@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Caption="ZGameEditor application" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+uTime+=delta;
+
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+uMouse=vector4(0.0,0.0,0.0,0.0);]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader" UpdateVarsOnEachUse="255">
+      <VertexShaderSource>
+<![CDATA[#version 120
+
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+
+
+
+uniform float y_speed,x_speed;
+uniform vec2 iResolution,iViewport;
+uniform float iTime;
+uniform vec4 iMouse;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+#define iChannel0 tex1
+#define iChannel1 tex2
+
+
+
+//float FOV = 10.0;
+uniform bool Pause;
+uniform bool cull_back = false;
+uniform bool reverse_cull_back = false;
+vec2 offset = vec2(0.5);
+vec3 p;
+vec2 o;
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+{
+    vec2 iResolution = iResolution.xy;
+    vec2 Oguv = fragCoord / iResolution.xy;
+    vec2 uv = fragCoord / iResolution.xy;
+
+    float final_time = 1.0;
+    if (Pause == false)
+    {
+    final_time = iTime;
+    }
+    float y_rot = (y_speed * 500.0) * final_time;
+    float x_rot = (x_speed * 500.0) * final_time;
+    float sin_b = sin(y_rot / 180.0 * 3.14159265);
+    float cos_b = cos(y_rot / 180.0 * 3.14159265);
+    float sin_c = sin(x_rot / 180.0 * 3.14159265);
+    float cos_c = cos(x_rot / 180.0 * 3.14159265);
+
+    mat3 inv_rot_mat;
+    inv_rot_mat[0][0] = cos_b;
+    inv_rot_mat[0][1] = 0.0;
+    inv_rot_mat[0][2] = -sin_b;
+
+    inv_rot_mat[1][0] = sin_b * sin_c;
+    inv_rot_mat[1][1] = cos_c;
+    inv_rot_mat[1][2] = cos_b * sin_c;
+
+    inv_rot_mat[2][0] = sin_b * cos_c;
+    inv_rot_mat[2][1] = -sin_c;
+    inv_rot_mat[2][2] = cos_b * cos_c;
+
+    float t = tan(10.0 / 360.0 * 3.14159265);
+    p = inv_rot_mat * vec3((uv - offset), 0.5 / t);
+
+    float v = (0.5 / t) + 0.5;
+    p.xy *= v * inv_rot_mat[2].z;
+    o = v * inv_rot_mat[2].xy;
+
+    vec2 finalUV = (p.xy / p.z).xy - o;
+
+    finalUV += offset;
+    vec4 texColor = texture2D(iChannel0, finalUV);
+
+    if (finalUV.x < 0.0 || finalUV.x > 1.0 || finalUV.y < 0.0 || finalUV.y > 1.0)
+    {
+        fragColor = vec4(0.0);
+    }
+    else
+    {
+
+
+    if (cull_back && p.z <= 0.0)
+    {
+        fragColor = vec4(0.0);
+    }
+    else
+
+    if (reverse_cull_back && p.z >= 0.0)
+    {
+        fragColor = vec4(0.0);
+    }
+    else
+
+    {
+
+    fragColor = texColor;
+    }
+
+
+
+
+
+
+
+
+    }
+}
+
+void main(){
+    mainImage(gl_FragColor, gl_FragCoord.xy - iViewport);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
+        <ShaderVariable VariableName="y_speed" ValuePropRef="1.0-Parameters[0]"/>
+        <ShaderVariable VariableName="x_speed" ValuePropRef="1.0-Parameters[1]"/>
+        <ShaderVariable VariableName="cull_back" ValuePropRef="0.0-Parameters[2]"/>
+        <ShaderVariable VariableName="reverse_cull_back" ValuePropRef="0.0-Parameters[3]"/>
+        <ShaderVariable VariableName="Pause" ValuePropRef="0.0-Parameters[4]"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uMouse" Type="8"/>
+        <Variable Name="uDate" Type="8"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="6" Persistent="255">
+          <Values>
+<![CDATA[789C636068B067006306062620E665E0023119001E2E0198]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2">
+          <StringValue>
+<![CDATA[speed Y
+speed X
+cull back @checkbox
+cull front @checkbox
+control_time @checkbox]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue="made by mae :p"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TextureWrapMode="1"/>
+            <MaterialTexture Name="Source1" Texture="Bitmap1" TextureWrapMode="1"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>

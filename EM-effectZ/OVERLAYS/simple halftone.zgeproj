@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Comment="https://www.shadertoy.com/user/choxi" Caption="ZGameEditor application" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+uTime+=delta;
+
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+uMouse=vector4(0.0,0.0,0.0,0.0);]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader" UpdateVarsOnEachUse="255">
+      <VertexShaderSource>
+<![CDATA[#version 120
+
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+uniform vec2 iResolution,iViewport;
+uniform float iTime;
+uniform vec4 iMouse;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+#define iChannel0 tex1
+#define iChannel1 tex2
+ //= 20.0
+
+uniform float dotResolution = 20.0;
+uniform float dotRadius = 0.5;
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+{
+
+    float _dotResolution = dotResolution * 100.0;
+    // Normalized pixel coordinates (from 0 to 1)
+    vec2 uv = fragCoord / iResolution.xy;
+    vec2 uv2 = 2.0 * fract(uv * _dotResolution) - 1.0;
+    float distance = length(uv2);
+
+    // Colors for dot and background
+    vec4 black = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 white = vec4(1.0, 1.0, 1.0, 1.0);
+    vec4 colorHalfTone = mix(white, black, step(dotRadius, distance));
+
+    // Calculating the center coordinate for texture sampling
+    //vec2 centerCoord = (floor(fragCoord));
+    vec3 sampledColor = texture2D(iChannel0, fragCoord / iResolution.xy).rgb;
+
+    // Blend sampled texture color with halftone pattern
+    vec3 color = mix(sampledColor,sampledColor * colorHalfTone.rgb, colorHalfTone.a);
+
+    // Output to screen
+    fragColor = vec4(color, 1.0);
+}
+
+
+void main(){
+    //ZGE does not use mainImage( out vec4 fragColor, in vec2 fragCoord )
+    //Rededefined fragCoord as gl_FragCoord.xy-iViewport(dynamic window)
+    mainImage(gl_FragColor,gl_FragCoord.xy-iViewport);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
+        <ShaderVariable VariableName="dotResolution" ValuePropRef="1.0-Parameters[0]"/>
+        <ShaderVariable VariableName="dotRadius" ValuePropRef="1.0-Parameters[1]"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uMouse" Type="8"/>
+        <Variable Name="uDate" Type="8"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="2" Persistent="255">
+          <Values>
+<![CDATA[789C333636B6676060B0070005B10118]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2">
+          <StringValue>
+<![CDATA[dotRes
+dotRad]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue="ported by mae"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TexCoords="1"/>
+            <MaterialTexture Name="Source1" Texture="Bitmap1"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>

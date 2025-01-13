@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Comment="https://www.shadertoy.com/user/Zeican" Caption="ZGameEditor application" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+uTime+=delta;
+
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+uMouse=vector4(0.0,0.0,0.0,0.0);]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader">
+      <VertexShaderSource>
+<![CDATA[#version 120
+
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+uniform vec2 iResolution,iViewport;
+uniform float iTime;
+uniform vec4 iMouse;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+#define iChannel0 tex1
+#define iChannel1 tex2
+
+// Parameters to control compression quality and strength
+uniform float uQuality = 0.75;   // Compression quality (higher is worse)
+uniform float uStrength = 0.5;  // Compression strength (higher means more artifacts)
+
+// Helper functions for DCT and IDCT
+float dctCoefficient(int u, int v, float block[64]) {
+    float sum = 0.0;
+    for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            float pixel = block[x * 8 + y];
+            sum += pixel * cos((2.0 * float(x) + 1.0) * float(u) * 3.14159 / 16.0) * cos((2.0 * float(y) + 1.0) * float(v) * 3.14159 / 16.0);
+        }
+    }
+    float Cu = u == 0 ? 0.7071 : 1.0;
+    float Cv = v == 0 ? 0.7071 : 1.0;
+    return 0.25 * Cu * Cv * sum;
+}
+
+float idctCoefficient(int x, int y, float block[64]) {
+    float sum = 0.0;
+    for (int u = 0; u < 8; u++) {
+        for (int v = 0; v < 8; v++) {
+            float coeff = block[u * 8 + v];
+            float Cu = u == 0 ? 0.7071 : 1.0;
+            float Cv = v == 0 ? 0.7071 : 1.0;
+            sum += Cu * Cv * coeff * cos((2.0 * float(x) + 1.0) * float(u) * 3.14159 / 16.0) * cos((2.0 * float(y) + 1.0) * float(v) * 3.14159 / 16.0);
+        }
+    }
+    return 0.25 * sum;
+}
+
+// Main shader function
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    // Convert to YCoCg color space
+    vec3 rgb = texture2D(iChannel0, fragCoord.xy / iResolution.xy).rgb;
+    float Y = 0.25 * rgb.r + 0.5 * rgb.g + 0.25 * rgb.b;
+    float Co = 0.5 * rgb.r - 0.5 * rgb.b;
+    float Cg = -0.25 * rgb.r + 0.5 * rgb.g - 0.25 * rgb.b;
+
+    // Block-based processing
+    vec2 blockCoord = floor(fragCoord.xy / 8.0) * 8.0;
+    float block[64];
+
+    // Load block
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            vec2 coord = blockCoord + vec2(float(i), float(j));
+            block[i * 8 + j] = texture2D(iChannel0, coord / iResolution.xy).r;
+        }
+    }
+
+    // Apply DCT and quantization
+    float dctBlock[64];
+    for (int u = 0; u < 8; u++) {
+        for (int v = 0; v < 8; v++) {
+            dctBlock[u * 8 + v] = dctCoefficient(u, v, block);
+            // Use uQuality to control the quantization level
+            dctBlock[u * 8 + v] = round(dctBlock[u * 8 + v] / uQuality) * uQuality;
+        }
+    }
+
+    // Apply IDCT
+    float reconstructedBlock[64];
+    for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            reconstructedBlock[x * 8 + y] = idctCoefficient(x, y, dctBlock);
+        }
+    }
+
+    // Get the pixel value from the reconstructed block
+    vec2 localCoord = mod(fragCoord.xy, 8.0);
+    float reconstructedY = reconstructedBlock[int(localCoord.x) * 8 + int(localCoord.y)];
+
+    // Convert back to RGB
+    vec3 reconstructedRGB = vec3(reconstructedY + Co - Cg, reconstructedY + Cg, reconstructedY - Co - Cg);
+
+    // Apply uStrength to control the strength of the artifacts
+    reconstructedRGB = mix(rgb, reconstructedRGB, uStrength);
+
+    // Set the final pixel color
+    fragColor = vec4(reconstructedRGB, 1.0);
+}
+
+void main(){
+    //ZGE does not use mainImage( out vec4 fragColor, in vec2 fragCoord )
+    //Rededefined fragCoord as gl_FragCoord.xy-iViewport(dynamic window)
+    mainImage(gl_FragColor,gl_FragCoord.xy-iViewport);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
+        <ShaderVariable VariableName="uQuality" ValuePropRef="1.0-Parameters[0]"/>
+        <ShaderVariable VariableName="uStrength" ValuePropRef="1.0-Parameters[1]"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uMouse" Type="8"/>
+        <Variable Name="uDate" Type="8"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="2" Persistent="255">
+          <Values>
+<![CDATA[789C636080000000080001]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2">
+          <StringValue>
+<![CDATA[quality
+alpha]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue="ported by mae ;p"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TexCoords="1"/>
+            <MaterialTexture Name="Source1" Texture="Bitmap1"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>

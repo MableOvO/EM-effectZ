@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Caption="ZGameEditor application" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+uTime+=delta;
+
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+uMouse=vector4(0.0,0.0,0.0,0.0);]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader">
+      <VertexShaderSource>
+<![CDATA[#version 120
+
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+uniform vec2 iResolution,iViewport;
+uniform float iTime;
+
+
+
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+#define iChannel0 tex1
+#define iChannel1 tex2
+
+uniform float red = 0.4,green = 0.5,blue = 0.8;
+uniform float Intensity;
+uniform float Timescale;
+uniform float direction;
+uniform float size = 0.1;
+
+
+//dear user reading my zgameeditor file, hi!!!
+
+float rand(vec2 a) {
+    return fract(sin(dot(mod(a, vec2(1000.0)).xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float rainDist(vec2 p, float scale, float intensity, float uTime) {
+
+    float _direction = -0.1;
+
+    _direction = direction + 0.5;
+
+
+    p *= 0.1;
+    p.x += p.y * _direction;
+    p.y -= uTime * 500.0 / scale;
+    p.y *= 0.03;
+    float ix = floor(p.x);
+    p.y += mod(ix, 2.0) * 0.5 + (rand(vec2(ix)) - 0.5) * 0.3;
+    float iy = floor(p.y);
+    vec2 index = vec2(ix, iy);
+    p -= index;
+    p.x += (rand(index.yx) * 2.0 - 1.0) * 0.35;
+    vec2 a = abs(p - 0.5);
+    float res = max(a.x * 0.8, a.y * 0.5) - 0.1;
+    bool empty = rand(index) < mix(1.0, 0.1, intensity);
+    return empty ? 1.0 : res;
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+
+    float _timescale = Timescale/5;
+    vec2 uv = fragCoord/iResolution.xy;
+    vec2 wpos = uv * iResolution.xy;
+
+    float intensity = Intensity;
+    float uTime = iTime * _timescale;
+    vec3 add = vec3(0.0);
+    float rainSum = 0.0;
+
+    const int numLayers = 4;
+    float scales[4];
+    scales[0] = 1.0;
+    scales[1] = 1.8;
+    scales[2] = 2.6;
+    scales[3] = 4.8;
+
+    vec2 warpOffset = vec2(0.0);
+    vec2 screenCenter = iResolution.xy * 0.5;
+
+    for (int i = 0; i < numLayers; i++) {
+        float scale = scales[i] / 4.0 ;
+        scale = scale * size;
+        float r = rainDist(wpos * scale + 500.0 * float(i), scale, intensity, uTime);
+        if (r < 0.0) {
+            float v = (1.0 - exp(r * 5.0)) / scale * 2.0;
+            wpos.x += v * 10.0;
+            wpos.y -= v * 2.0;
+            add += vec3(0.1, 0.15, 0.2) * v;
+            rainSum += (1.0 - rainSum) * 0.75;
+            warpOffset.x += v * 0.1 * (fragCoord.x - screenCenter.x) / screenCenter.x;
+            warpOffset.y += v * 0.1 * (fragCoord.y) / screenCenter.y;
+        }
+    }
+
+    vec3 rainColor = vec3(red, green, blue);
+    uv.x -= warpOffset.x * 0.03;
+    uv.y -= warpOffset.y * 0.03;
+
+    vec4 color = texture2D(iChannel0, uv);
+    color.rgb += (add * 0.4);
+    color.rgb = mix(color.rgb, rainColor, 0.1 * rainSum);
+
+    fragColor = color;
+}
+
+void main(){
+
+    //ZGE does not use mainImage( out vec4 fragColor, in vec2 fragCoord )
+    //Rededefined fragCoord as gl_FragCoord.xy-iViewport(dynamic window)
+    mainImage(gl_FragColor,gl_FragCoord.xy-iViewport);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
+        <ShaderVariable VariableName="Intensity" ValuePropRef="1.0-Parameters[0]"/>
+        <ShaderVariable VariableName="Timescale" ValuePropRef="0.0-Parameters[1]"/>
+        <ShaderVariable VariableName="direction" ValuePropRef="0.0-Parameters[2]" ArrayKind="1"/>
+        <ShaderVariable VariableName="size" ValuePropRef="1.0-Parameters[3]" ArrayKind="1"/>
+        <ShaderVariable Name="red" DesignDisable="1" VariableName="red" ValuePropRef="1.0-Parameters[4]"/>
+        <ShaderVariable Name="green" DesignDisable="1" VariableName="green" ValuePropRef="1.0-Parameters[5]"/>
+        <ShaderVariable Name="blue" DesignDisable="1" VariableName="blue" ValuePropRef="1.0-Parameters[6]"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uMouse" Type="8"/>
+        <Variable Name="uDate" Type="8"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="8" Persistent="255">
+          <Values>
+<![CDATA[789C636060B06700E2593325ED010822020A]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2">
+          <StringValue>
+<![CDATA[Intensity
+Timescale
+direction
+scale
+]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue=" FunkinCrew, ported by mae :p"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TexCoords="1"/>
+            <MaterialTexture Name="Source1" Texture="Bitmap1"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>

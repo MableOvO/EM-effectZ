@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Caption="ZGameEditor application" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+uTime+=delta;
+
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+uMouse=vector4(0.0,0.0,0.0,0.0);]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader">
+      <VertexShaderSource>
+<![CDATA[#version 120
+
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+uniform vec2 iResolution,iViewport;
+uniform float iTime;
+uniform vec4 iMouse;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
+#define iChannel0 tex1
+#define iChannel1 tex2
+
+//puke colors blehhh
+
+uniform float speed,r1,g1,b1,r2,g2,b2;
+uniform bool viewbase = false;
+
+float rand(vec2 n) { 
+    return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
+
+float noise(vec2 n) {
+    const vec2 d = vec2(0.0, 1.0);
+    vec2 b = floor(n), f = smoothstep(vec2(0.0), vec2(1.0), fract(n));
+    return mix(mix(rand(b), rand(b + d.yx), f.x), mix(rand(b + d.xy), rand(b + d.yy), f.x), f.y);
+}
+
+float pattern(vec2 uv, float time) {
+	float _time = time * (speed * 10.0);
+    uv *= 10.0;
+
+    uv += noise(uv * 0.5) * 2.0;
+    float n = noise(uv - _time * 0.5);
+	if (viewbase == false)
+	{
+		return step(0.5, sin(n * 10.5 + _time));
+	}
+    else
+	{
+		return n;
+	}
+	
+}
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+
+
+    vec3 color1 = vec3(r1,g1,b1);
+    vec3 color2 = vec3(r2,g2,b2);
+    vec2 uv = fragCoord/iResolution.xy;
+    vec2 UV = uv;
+    float t = iTime;
+    uv -= rand(vec2(10));
+    float blobs = pattern(uv, t);
+    vec3 color = mix(color2, color1, blobs);
+	vec4 alpha_tx = texture2D(iChannel0, UV);
+    fragColor = vec4(color, 1.0);
+	fragColor.a = alpha_tx.a;
+}
+
+
+void main(){
+    //ZGE does not use mainImage( out vec4 fragColor, in vec2 fragCoord )
+    //Rededefined fragCoord as gl_FragCoord.xy-iViewport(dynamic window)
+    mainImage(gl_FragColor,gl_FragCoord.xy-iViewport);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
+        <ShaderVariable VariableName="speed" ValuePropRef="0.0-Parameters[0]"/>
+        <ShaderVariable VariableName="r1" ValuePropRef="1.0-Parameters[1]"/>
+        <ShaderVariable VariableName="g1" ValuePropRef="1.0-Parameters[2]"/>
+        <ShaderVariable VariableName="b1" ValuePropRef="1.0-Parameters[3]"/>
+        <ShaderVariable VariableName="r2" ValuePropRef="1.0-Parameters[4]"/>
+        <ShaderVariable VariableName="g2" ValuePropRef="1.0-Parameters[5]"/>
+        <ShaderVariable VariableName="b2" ValuePropRef="1.0-Parameters[6]"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uMouse" Type="8"/>
+        <Variable Name="uDate" Type="8"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="7" Persistent="255">
+          <Values>
+<![CDATA[789C3B7BC6C78E81A1C11E81110000615F0461]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2">
+          <StringValue>
+<![CDATA[speed
+Red P@separator
+Green P
+Blue P
+Red S@separator
+Green S
+Blue S]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue="made by mae :p"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TexCoords="1"/>
+            <MaterialTexture Name="Source1" Texture="Bitmap1"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>
