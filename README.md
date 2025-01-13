@@ -12,4 +12,4 @@ and paste "EM-effectZ" from the zip file downloaded
 
 restart fl studio if necessary
 
-step 3: profit
+profit
