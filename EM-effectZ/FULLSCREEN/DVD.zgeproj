@@ -207,6 +207,7 @@ vec2 calcHitPos(vec2 move, vec2 dir, vec2 size) {
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
+    vec2 uv = (fragCoord/iResolution.xy);
     vec2 p = (-iResolution.xy + 2.0*fragCoord)/iResolution.y;
 
     #ifdef DEBUG
@@ -290,7 +291,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     // gamma
     col.rgb = pow(col.rgb, vec3(0.4545));
-    fragColor = col;
+
+
+    //overlay it over the screen
+    vec4 SCR = texture2D(iChannel0,uv);
+    float mask = step(0.0001, length(col.rgb));
+    fragColor = mix(SCR, col, mask);
 }
 
 /** SHADERDATA

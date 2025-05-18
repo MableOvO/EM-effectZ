@@ -59,9 +59,9 @@ float tanh(float x) {
 
 void mainImage(out vec4 O, vec2 p)
 {
-
+    vec2 uv = (p/iResolution.xy);
     vec2 R = iResolution.xy;
-    O = texture2D(iChannel1, p / R );
+    vec4 SCR = texture2D(iChannel0,uv);
     p.x -= .5*R.x;
     p = Camera_Dist * ( p + O.xy ) / R.y;
     
@@ -72,6 +72,7 @@ void mainImage(out vec4 O, vec2 p)
               * ( 1. + .5 * sin(squash_stretch * t) * r );
 
     O = vec4( length(vec2(p.x * s*s, p.y - b) ) < s )- cmyu;
+    O = 1 - (1 - O) * (1 - SCR);
 
 }
 

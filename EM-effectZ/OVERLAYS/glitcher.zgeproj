@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<ZApplication Name="App" Caption="ZGameEditor application" FileVersion="2">
+  <OnUpdate>
+    <ZExpression>
+      <Expression>
+<![CDATA[//Optional: Move  to Constants to ZLibrary before release.
+float Speed=1.0;
+float delta=app.DeltaTime*Speed;
+
+if(Parameters[3])
+  uTime = Speed;
+else
+  uTime += delta;
+//Bitmap b = b_texture;
+//mt1.Texture=b;
+
+
+//int TextureWidth = b.Width;
+//int TextureHeight = b.Height;
+
+//float r = TextureWidth * 1f / TextureHeight;
+
+//Most used ShaderToy uniform variables
+uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
+uViewport=vector2(app.ViewportX,app.ViewportY);
+
+uIntensity = -Parameters[0] ;
+uBin = Parameters[1] * 20.0;
+uInvert = Parameters[2] * 20.0;
+
+
+if(Parameters[3])
+  uBin = Parameters[1] * 100.0;
+else
+  uBin = Parameters[1] * 20.0;
+
+
+
+//rtg1.Scale.X=(1*4);
+//rtg1.Scale.Y=1*4;]]>
+      </Expression>
+    </ZExpression>
+  </OnUpdate>
+  <OnRender>
+    <UseMaterial Material="mCanvas"/>
+    <RenderSprite/>
+  </OnRender>
+  <Content>
+    <Shader Name="MainShader" UpdateVarsOnEachUse="255">
+      <VertexShaderSource>
+<![CDATA[#version 120
+
+
+void main(){
+  vec4 vertex = gl_Vertex;
+  vertex.xy *= 2.0;
+  gl_Position = vertex;
+}]]>
+      </VertexShaderSource>
+      <FragmentShaderSource>
+<![CDATA[#version 120
+
+uniform vec2 iResolution;
+uniform sampler2D tex1;
+uniform float iTime;
+
+
+
+uniform float binaryIntensity = -0.5;
+uniform float negativity_speed = 0.0;
+uniform float speed = 10.0;
+float rand(float co) { return fract(sin(co*(91.3458)) * 47453.5453); }
+
+
+
+void main(){
+
+
+
+  float multi = rand(floor(iTime * speed));
+
+  float neg = rand(floor(iTime * negativity_speed));
+  vec2 uv = gl_FragCoord.xy/iResolution.xy;
+
+  float psize = .04 * binaryIntensity + multi;
+  float psq = 1. / psize;
+  vec2 p = floor(uv * psq + .5) * psize;
+  vec4 colSnap = texture2D(tex1, p);
+
+  float lum = pow(1. - (colSnap.r + colSnap.g + colSnap.b) / 3., binaryIntensity + multi);
+  float qsize = psize * lum + multi;
+  float qsq = 1. / qsize;
+  vec2 q = floor(uv * qsq + .5) * qsize;
+
+  vec2 finalUV = (p - q) * lum + uv;
+
+  vec4 color = texture2D(tex1, finalUV);
+  gl_FragColor = mix(color, vec4(1. - color.r, 1. - color.g, 1. - color.b, color.a) * color.a, neg);
+}]]>
+      </FragmentShaderSource>
+      <UniformVariables>
+        <ShaderVariable VariableName="iResolution" VariableRef="uResolution"/>
+        <ShaderVariable VariableName="iViewport" VariableRef="uViewport"/>
+        <ShaderVariable VariableName="iTime" VariableRef="uTime"/>
+        <ShaderVariable VariableName="binaryIntensity" VariableRef="uIntensity"/>
+        <ShaderVariable VariableName="negativity_speed" VariableRef="uInvert"/>
+        <ShaderVariable VariableName="speed" VariableRef="uBin"/>
+      </UniformVariables>
+    </Shader>
+    <Group Comment="Default ShaderToy Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uResolution" Type="6"/>
+        <Variable Name="uTime"/>
+        <Variable Name="uTimeDelta"/>
+        <Variable Name="uFrame" Type="1"/>
+        <Variable Name="uFrameRate"/>
+        <Variable Name="uDate" Type="8"/>
+        <Variable Name="uIntensity"/>
+        <Variable Name="uInvert"/>
+        <Variable Name="uBin"/>
+      </Children>
+    </Group>
+    <Group Comment="FL Studio Varibles">
+      <Children>
+        <Array Name="Parameters" SizeDim1="4" Persistent="255">
+          <Values>
+<![CDATA[789C3B7BC6C78E010A98801800202A0226]]>
+          </Values>
+        </Array>
+        <Constant Name="ParamHelpConst" Type="2">
+          <StringValue>
+<![CDATA[Binary Intensity
+Binary Speed
+Negative Speed
+Control time @checkbox]]>
+          </StringValue>
+        </Constant>
+        <Constant Name="AuthorInfo" Type="2" StringValue="Shader author"/>
+      </Children>
+    </Group>
+    <Group Comment="Unique Uniform Varible Inputs">
+      <Children>
+        <Variable Name="uViewport" Type="6"/>
+      </Children>
+    </Group>
+    <Group Comment="Materials and Textures">
+      <Children>
+        <Material Name="mCanvas" Light="0" ZBuffer="0" Shader="MainShader">
+          <Textures>
+            <MaterialTexture Name="FeedbackMaterialTexture" TextureWrapMode="2" TexCoords="1" Origin="0.5 0.5 0.5"/>
+          </Textures>
+        </Material>
+      </Children>
+    </Group>
+    <Bitmap Name="Bitmap1" Width="128" Height="128">
+      <Producers>
+        <BitmapCells CellStyle="5"/>
+      </Producers>
+    </Bitmap>
+  </Content>
+</ZApplication>

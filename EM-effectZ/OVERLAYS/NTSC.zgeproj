@@ -109,7 +109,7 @@ vec4 CompositeSample(vec2 UV) {
 	vec3 Texel1 = texture2D(iChannel0, C1).rgb;
 	vec3 Texel2 = texture2D(iChannel0, C2).rgb;
 	vec3 Texel3 = texture2D(iChannel0, C3).rgb;
-	
+
 	vec4 T = A * Cy * vec4(iResolution.x) * Two + B + Cx;
 
 	const vec3 YTransform = vec3(0.299, 0.587, 0.114);
@@ -147,7 +147,7 @@ vec3 NTSCCodec(vec2 UV)
 	vec4 QAccum = Zero;
 	float QuadXSize = iResolution.x * 4.0;
 	float TimePerSample = ScanTime  / QuadXSize ;
-	
+
 
 	float Fc_y1 = (CCFrequency - NotchHalfWidth) * TimePerSample;
 	float Fc_y2 = (CCFrequency + NotchHalfWidth) * TimePerSample;
@@ -187,8 +187,8 @@ vec3 NTSCCodec(vec2 UV)
 		if(SincYIn3.w == 0.0) SincY3.w = 1.0;
 		//vec4 IdealY = (2.0 * Fc_y1 * SincY1 - 2.0 * Fc_y2 * SincY2) + 2.0 * Fc_y3 * SincY3;
 		vec4 IdealY = (2.0 * Fc_y1 * SincY1 - 2.0 * Fc_y2 * SincY2) + 2.0 * Fc_y3 * SincY3;
-		vec4 FilterY = (0.54 + 0.46 * cos(Pi2Length * n4)) * IdealY;		
-		
+		vec4 FilterY = (0.54 + 0.46 * cos(Pi2Length * n4)) * IdealY;
+
 		vec4 SincIIn = Pi2 * Fc_i * n4;
 		vec4 SincI = sin(SincIIn) / SincIIn;
 		if (SincIIn.x == 0.0) SincI.x = 1.0;
@@ -197,7 +197,7 @@ vec3 NTSCCodec(vec2 UV)
 		if (SincIIn.w == 0.0) SincI.w = 1.0;
 		vec4 IdealI = 2.0 * Fc_i * SincI;
 		vec4 FilterI = (0.54 + 0.46 * cos(Pi2Length * n4)) * IdealI;
-		
+
 		vec4 SincQIn = Pi2 * Fc_q * n4;
 		vec4 SincQ = sin(SincQIn) / SincQIn;
 		if (SincQIn.x == 0.0) SincQ.x = 1.0;
@@ -206,7 +206,7 @@ vec3 NTSCCodec(vec2 UV)
 		if (SincQIn.w == 0.0) SincQ.w = 1.0;
 		vec4 IdealQ = 2.0 * Fc_q * SincQ;
 		vec4 FilterQ = (0.54 + 0.46 * cos(Pi2Length * n4)) * IdealQ;
-		
+
 		YAccum = YAccum + C * FilterY;
 		IAccum = IAccum + C * cos(WT) * FilterI;
 		QAccum = QAccum + C * sin(WT) * FilterQ;
@@ -215,7 +215,7 @@ vec3 NTSCCodec(vec2 UV)
 	float Y = YAccum.r + YAccum.g + YAccum.b + YAccum.a;
 	float I = (IAccum.r + IAccum.g + IAccum.b + IAccum.a) * 2.0;
 	float Q = (QAccum.r + QAccum.g + QAccum.b + QAccum.a) * 2.0;
-	
+
 	vec3 YIQ = vec3(Y, I, Q);
 	vec3 OutRGB = vec3(dot(YIQ, vec3(1.0, 0.956, 0.621)), dot(YIQ, vec3(1.0, -0.272, -0.647)), dot(YIQ, vec3(1.0, -1.106, 1.703)));
 
