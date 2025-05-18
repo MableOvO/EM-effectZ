@@ -8,30 +8,30 @@ float Speed=1.0;
 float delta=app.DeltaTime*Speed;
 uTime+=delta;
 
+
 Bitmap b= Bitmap1;
 float TextureWidth = b.Width;
 float TextureHeight = b.Height;
 
+
 uTex = vector2(TextureWidth,TextureHeight);
-//Most used ShaderToy uniform variables
+
+uScale = -Parameters[6]*2.0;
+ueffect = (Parameters[9]*1000);
+
 uResolution=vector2(app.ViewportWidth,app.ViewportHeight);
 uViewport=vector2(app.ViewportX,app.ViewportY);
-uMouse=vector4(0.0,0.0,0.0,0.0);
-
-
-
-//app.CameraPosition.z= 4-Parameters[4]*3.5;
-//app.cameraPosition.x=(-0.5+Parameters[4])*-20;
-//app.cameraPosition.y=(-0.5+Parameters[5])*10;
-
-//rtg1.Scale.X=(1 + Parameters[7]*4) * r;
-//rtg1.Scale.Y=1 + Parameters[8]*4;]]>
+uMouse=vector4(0.0,0.0,0.0,0.0);]]>
       </Expression>
     </ZExpression>
   </OnUpdate>
   <OnRender>
     <UseMaterial Material="mCanvas"/>
-    <RenderSprite/>
+    <RenderTransformGroup Name="rtg">
+      <Children>
+        <RenderSprite/>
+      </Children>
+    </RenderTransformGroup>
   </OnRender>
   <Content>
     <Shader Name="MainShader" UpdateVarsOnEachUse="255">
@@ -52,53 +52,122 @@ uniform float iTime;
 uniform vec4 iMouse;
 uniform sampler2D tex1;
 uniform sampler2D tex2;
-#define iChannel0 tex1
-#define iChannel1 tex2
-uniform bool original_texture;
 uniform float cropY;
 uniform float cropX;
-
+uniform float useTex;
 uniform float offsetX;
 uniform float offsetY;
-
+uniform float rotation;
 uniform float PosX;
 uniform float PosY;
-
 uniform float scale;
+uniform float effect = 2.0;
 
-void mainImage(out vec4 fragColor, in vec2 fragCoord)
-{
-    if (original_texture == false)
-    {
-        vec2 Pos = vec2(PosX, PosY);
-        Pos = ((0.5 + Pos) * -3.0) + 0.5;
-        vec2 crop = vec2(cropX, cropY);
-        vec2 offset = vec2(offsetX, offsetY);
-        vec2 uv = fragCoord / iResolution.xy;
-        uv -= offset * -10.0;
-        uv *= scale;
-
-        vec2 cropMin = Pos - vec2(crop);
-        vec2 cropMax = Pos + vec2(crop);
-
-        if (uv.x >= cropMin.x && uv.x <= cropMax.x && uv.y >= cropMin.y && uv.y <= cropMax.y)
-        {
+#define M_PI 3.1415926535897932384626433832795
 
 
 
-            fragColor = texture2D(iChannel0, uv);
-        }
+vec2 rotate(vec2 uv, float angle, vec2 aspect) {
+    uv -= 0.5;
+    uv.x *= aspect.x / aspect.y;
+    mat2 rot = mat2(cos(angle), sin(angle),-sin(angle), cos(angle));
+    uv = rot * uv;
+    uv.x *= aspect.y / aspect.x;
+    uv += 0.5;
+    return uv;
+}
+
+
+
+
+
+
+
+
+
+vec4 applyBlend(vec4 base, vec4 blend, float mode) {
+    mode = int(mode);
+    if (mode == 0) {
+        return base;
     }
-    else
-    {
-        vec2 uv = fragCoord / iResolution.xy;
-        fragColor = texture2D(iChannel0, uv);
+    if (mode == 1) {
+        return base * blend;
+    }
+    if (mode == 2) {
+        return base - blend;
+    }
+    if (mode == 3) {
+        return mix(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), step(0.5, base));
+    }
+    if (mode == 4) {
+        return 1.0 - (1.0 - base) * (1.0 - blend);
+    }
+    if (mode == 5) {
+        return clamp(base + blend, 0.0, 1.0);
     }
 }
 
+
+
+
+
 void main()
 {
-    mainImage(gl_FragColor, gl_FragCoord.xy - iViewport);
+	vec2 Pos = vec2(PosX, PosY);
+	Pos = ((0.5 + Pos) * -3.0) + 0.5;
+	vec2 crop = vec2(cropX, cropY);
+	vec2 offset = vec2(offsetX, offsetY);
+
+
+
+
+	vec2 uv = (gl_FragCoord.xy - iViewport) / iResolution.xy;
+  vec2 unmodified_uv = uv;
+	uv -= offset * -10.0;
+
+
+
+	uv -= 0.5;
+
+	uv *= scale;
+	uv += 0.5;
+
+	vec2 cropMin = Pos - vec2(crop);
+	vec2 cropMax = Pos + vec2(crop);
+
+  float rot = mix(180,0,rotation); //(rotation - 0.5) * 10.0;
+
+  vec4 Screen;
+  if (useTex > 0.0)
+  {
+    Screen = texture2D(tex1, unmodified_uv);
+  }
+  else
+  {
+   Screen = texture2D(tex2, unmodified_uv);
+  }
+
+  uv = rotate(uv,radians(rot),iResolution);
+	if (uv.x >= cropMin.x && uv.x <= cropMax.x && uv.y >= cropMin.y && uv.y <= cropMax.y)
+	{
+    vec4 unmixed;
+    if (useTex > 0.0)
+    {
+      unmixed = texture2D(tex2, uv);
+    }
+    else
+    {
+     unmixed = texture2D(tex1, uv);
+    }
+    vec4 finalmix = applyBlend(unmixed,Screen,effect);
+    gl_FragColor = finalmix;
+	}
+  else
+  {
+
+    gl_FragColor = Screen;
+
+  }
 }]]>
       </FragmentShaderSource>
       <UniformVariables>
@@ -108,13 +177,16 @@ void main()
         <ShaderVariable VariableName="iMouse" VariableRef="uMouse"/>
         <ShaderVariable VariableName="cropX" ValuePropRef="1.0-Parameters[0]"/>
         <ShaderVariable VariableName="cropY" ValuePropRef="1.0-Parameters[1]"/>
-        <ShaderVariable VariableName="offsetX" ValuePropRef="0.0-Parameters[2]"/>
-        <ShaderVariable VariableName="offsetY" ValuePropRef="0.0-Parameters[3]"/>
+        <ShaderVariable VariableName="offsetX" ValuePropRef="-(Parameters[2]-0.5)"/>
+        <ShaderVariable VariableName="offsetY" ValuePropRef="-(Parameters[3]-0.5)"/>
         <ShaderVariable VariableName="PosX" ValuePropRef="0.0-Parameters[4]"/>
         <ShaderVariable VariableName="PosY" ValuePropRef="0.0-Parameters[5]"/>
-        <ShaderVariable VariableName="scale" ValuePropRef="1.0-Parameters[6]"/>
         <ShaderVariable VariableName="original_texture" ValuePropRef="0.0-Parameters[7]"/>
         <ShaderVariable VariableName="iTex" VariableRef="uTex"/>
+        <ShaderVariable VariableName="useTex" ValuePropRef="parameters[8]"/>
+        <ShaderVariable VariableName="rotation" ValuePropRef="parameters[7]"/>
+        <ShaderVariable VariableName="scale" VariableRef="uScale"/>
+        <ShaderVariable VariableName="effect" VariableRef="ueffect"/>
       </UniformVariables>
     </Shader>
     <Group Comment="Default ShaderToy Uniform Varible Inputs">
@@ -127,25 +199,29 @@ void main()
         <Variable Name="uMouse" Type="8"/>
         <Variable Name="uDate" Type="8"/>
         <Variable Name="uTex" Type="6"/>
+        <Variable Name="uScale"/>
+        <Variable Name="ueffect"/>
       </Children>
     </Group>
     <Group Comment="FL Studio Varibles">
       <Children>
-        <Array Name="Parameters" SizeDim1="8" Persistent="255">
+        <Array Name="Parameters" SizeDim1="10" Persistent="255">
           <Values>
-<![CDATA[789C6360C000F620ACCCA00CE60000077400C5]]>
+<![CDATA[789C636060B067C08DE100002B3901BA]]>
           </Values>
         </Array>
         <Constant Name="ParamHelpConst" Type="2" IntValue="1">
           <StringValue>
 <![CDATA[crop X
 crop Y
-offset X@separator
+offset X @separator
 offset Y
-Position X@separator
+Position X @separator
 Position Y
 scale
-original tex @checkbox@separator]]>
+rotation
+screen as bg @checkbox
+effect @list1000: normal, multiply,subtract,overlay,screen,add]]>
           </StringValue>
         </Constant>
         <Constant Name="AuthorInfo" Type="2" StringValue="made by mae :p"/>
@@ -160,15 +236,15 @@ original tex @checkbox@separator]]>
       <Children>
         <Material Name="mCanvas" Shader="MainShader">
           <Textures>
-            <MaterialTexture Name="FeedbackMaterialTexture" TextureWrapMode="1"/>
-            <MaterialTexture Name="Source1" Texture="Bitmap1" TextureWrapMode="1"/>
+            <MaterialTexture Name="feedbackmaterialTexture" TextureWrapMode="1"/>
+            <MaterialTexture Name="texture" Texture="Bitmap1" TextureWrapMode="2"/>
           </Textures>
         </Material>
       </Children>
     </Group>
-    <Bitmap Name="Bitmap1" Width="128" Height="128">
+    <Bitmap Name="Bitmap1" Width="128" Height="128" Filter="1">
       <Producers>
-        <BitmapCells CellStyle="5" BorderPixels="0"/>
+        <BitmapExpression/>
       </Producers>
     </Bitmap>
   </Content>
